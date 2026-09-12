@@ -91,8 +91,14 @@ class DictateRecognitionService : RecognitionService() {
         private const val MAX_END_SILENCE_MS = 10_000L
         private const val MIN_NO_SPEECH_TIMEOUT_MS = 1_000L
         private const val MAX_NO_SPEECH_TIMEOUT_MS = 30_000L
+        private const val MIN_MINIMUM_LENGTH_MS = 0L
+        private const val MAX_MINIMUM_LENGTH_MS = 10 * 60 * 1_000L
         private const val MIN_MAX_RECORDING_MS = 5_000L
         private const val MAX_MAX_RECORDING_MS = 10 * 60 * 1_000L
+        private const val EXTRA_DICTATE_NO_SPEECH_TIMEOUT_MS =
+            "net.devemperor.dictate.extra.NO_SPEECH_TIMEOUT_MS"
+        private const val EXTRA_DICTATE_MAX_RECORDING_MS =
+            "net.devemperor.dictate.extra.MAX_RECORDING_MS"
 
         private fun endpointingFor(intent: Intent): RecognitionSession.EndpointingConfig {
             val defaults = RecognitionSession.EndpointingConfig.defaultForDevice()
@@ -107,18 +113,23 @@ class DictateRecognitionService : RecognitionService() {
                 intent.getLongExtra(
                     RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
                     0L,
-                ).coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS)
+                ).coerceIn(MIN_MINIMUM_LENGTH_MS, MAX_MINIMUM_LENGTH_MS)
             } else {
                 null
             }
+            val noSpeechTimeoutMs = intent.getLongExtra(
+                EXTRA_DICTATE_NO_SPEECH_TIMEOUT_MS,
+                defaults.noSpeechTimeoutMs,
+            ).coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
+            val maxRecordingMs = intent.getLongExtra(
+                EXTRA_DICTATE_MAX_RECORDING_MS,
+                defaults.maxRecordingMs,
+            ).coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS)
             return RecognitionSession.EndpointingConfig(
                 endSilenceMs = completeSilenceMs,
-                noSpeechTimeoutMs = defaults.noSpeechTimeoutMs.coerceIn(
-                    MIN_NO_SPEECH_TIMEOUT_MS,
-                    MAX_NO_SPEECH_TIMEOUT_MS,
-                ),
+                noSpeechTimeoutMs = noSpeechTimeoutMs,
                 minimumLengthMs = minimumLengthHintMs ?: defaults.minimumLengthMs,
-                maxRecordingMs = defaults.maxRecordingMs.coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS),
+                maxRecordingMs = maxRecordingMs,
             )
         }
 
