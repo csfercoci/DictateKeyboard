@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - copilot/implementare-android-15-voice-optimization
   pull_request:
 
 permissions:
