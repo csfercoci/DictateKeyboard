@@ -84,7 +84,9 @@ class RecognitionSession(
                 }
                 val elapsed = now - startedMs
                 when {
-                    speechStarted && now - lastLoudMs >= endpointing.endSilenceMs -> {
+                    speechStarted &&
+                        elapsed >= endpointing.minimumLengthMs &&
+                        now - lastLoudMs >= endpointing.endSilenceMs -> {
                         stop()
                         return@launch
                     }
@@ -195,6 +197,8 @@ class RecognitionSession(
             val endSilenceMs: Long,
             /** Max wait for initial speech before failing with `ERROR_SPEECH_TIMEOUT`. */
             val noSpeechTimeoutMs: Long,
+            /** Minimum recording length before silence endpointing may end the session. */
+            val minimumLengthMs: Long,
             /** Absolute recording ceiling regardless of speech activity. */
             val maxRecordingMs: Long,
         ) {
@@ -208,6 +212,7 @@ class RecognitionSession(
                     return EndpointingConfig(
                         endSilenceMs = endSilence,
                         noSpeechTimeoutMs = NO_SPEECH_TIMEOUT_MS,
+                        minimumLengthMs = 0L,
                         maxRecordingMs = MAX_RECORDING_MS,
                     )
                 }

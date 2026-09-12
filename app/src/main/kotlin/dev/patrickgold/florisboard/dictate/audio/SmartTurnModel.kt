@@ -12,6 +12,7 @@ package dev.patrickgold.florisboard.dictate.audio
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
 import android.content.Context
 import android.os.Build
@@ -118,14 +119,14 @@ internal object SmartTurnModel {
             qnnEnabled = try {
                 addQnn(mapOf("backend_path" to "libQnnHtp.so"))
                 true
-            } catch (_: Throwable) {
+            } catch (_: OrtException) {
                 false
             }
         }
         if (!qnnEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 addNnapi()
-            } catch (_: Throwable) {
+            } catch (_: OrtException) {
                 // Best effort only; CPU remains available.
             }
         }
