@@ -114,10 +114,9 @@ internal object SmartTurnModel {
      */
     private fun OrtSession.SessionOptions.configureLocalAcceleration() {
         if (isLikelySnapdragon()) {
-            val qnnEnabled = runCatching {
+            runCatching {
                 addQnn(mapOf("backend_path" to "libQnnHtp.so"))
-            }.isSuccess
-            if (qnnEnabled) return
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             runCatching { addNnapi() }
