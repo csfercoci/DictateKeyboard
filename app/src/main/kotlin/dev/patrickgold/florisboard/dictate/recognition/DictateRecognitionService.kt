@@ -111,10 +111,10 @@ class DictateRecognitionService : RecognitionService() {
                 completeSilenceMs,
             ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
             val endSilenceMs = when {
-                intent.hasExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS) ->
-                    completeSilenceMs
                 intent.hasExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS) ->
                     possibleSilenceMs
+                intent.hasExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS) ->
+                    completeSilenceMs
                 else -> defaults.endSilenceMs
             }
             val minimumLengthHintMs = if (intent.hasExtra(
