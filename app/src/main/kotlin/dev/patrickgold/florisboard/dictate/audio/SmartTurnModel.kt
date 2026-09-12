@@ -14,6 +14,7 @@ import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import android.content.Context
+import android.os.Build
 import dev.patrickgold.florisboard.dictate.provider.LocalModelCatalog
 import dev.patrickgold.florisboard.dictate.provider.LocalTranscriptionProvider
 import java.io.File
@@ -71,6 +72,7 @@ internal object SmartTurnModel {
                 setInterOpNumThreads(1)
                 setIntraOpNumThreads(1)
                 setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+                configureLocalAcceleration()
             }
             try {
                 SessionHolder(environment, environment.createSession(model.absolutePath, options))
@@ -104,6 +106,41 @@ internal object SmartTurnModel {
                 }
             }
         }.getOrNull()
+    }
+
+    /**
+     * Prefers Qualcomm's QNN Hexagon path on likely Snapdragon devices and falls back to NNAPI, then CPU.
+     * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
+     */
+    private fun OrtSession.SessionOptions.configureLocalAcceleration() {
+        if (isLikelySnapdragon()) {
+            val qnnEnabled = runCatching {
+                addQnn(mapOf("backend_path" to "libQnnHtp.so"))
+            }.isSuccess
+            if (qnnEnabled) return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            runCatching { addNnapi() }
+        }
+    }
+
+    private fun isLikelySnapdragon(): Boolean {
+        val probes = buildList {
+            add(Build.HARDWARE.orEmpty())
+            add(Build.BOARD.orEmpty())
+            add(Build.PRODUCT.orEmpty())
+            add(Build.BRAND.orEmpty())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Build.SOC_MANUFACTURER.orEmpty())
+                add(Build.SOC_MODEL.orEmpty())
+            }
+        }
+        return probes.any { value ->
+            val normalized = value.lowercase()
+            normalized.contains("qualcomm") ||
+                normalized.contains("snapdragon") ||
+                normalized.contains("qcom")
+        }
     }
 }
 
