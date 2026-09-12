@@ -30,7 +30,7 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew ./tools/fetch-sherpa-onnx.sh
 
-      - name: Fetch sherpa-onnx runtime artifacts
+      - name: Fetch sherpa-onnx + ORT runtime artifacts
         run: ./tools/fetch-sherpa-onnx.sh
 
       - name: Assemble debug APK

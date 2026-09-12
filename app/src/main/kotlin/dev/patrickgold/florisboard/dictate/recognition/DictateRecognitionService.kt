@@ -139,7 +139,6 @@ class DictateRecognitionService : RecognitionService() {
             val minimumLengthMs = minOf(
                 minimumLengthHintMs ?: defaults.minimumLengthMs,
                 maxRecordingMs,
-                noSpeechTimeoutMs,
             )
             return RecognitionSession.EndpointingConfig(
                 endSilenceMs = endSilenceMs,
