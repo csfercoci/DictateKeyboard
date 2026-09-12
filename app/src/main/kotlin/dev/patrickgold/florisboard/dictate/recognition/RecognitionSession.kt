@@ -85,9 +85,11 @@ class RecognitionSession(
                 }
                 val elapsed = now - startedMs
                 when {
-                    speechStarted &&
-                        elapsed >= endpointing.minimumLengthMs &&
-                        now - lastLoudMs >= endpointing.endSilenceMs -> {
+                    speechStarted && elapsed >= endpointing.minimumLengthMs && run {
+                        val silenceMs = now - lastLoudMs
+                        val possible = endpointing.possiblyCompleteSilenceMs
+                        (possible != null && silenceMs >= possible) || silenceMs >= endpointing.endSilenceMs
+                    } -> {
                         stop()
                         return@launch
                     }
@@ -196,6 +198,11 @@ class RecognitionSession(
         data class EndpointingConfig(
             /** Silence (after speech already started) that auto-submits the recording. */
             val endSilenceMs: Long,
+            /**
+             * Earlier "possibly complete" silence hint from the recognizer contract. When present, this
+             * allows a faster auto-stop than [endSilenceMs].
+             */
+            val possiblyCompleteSilenceMs: Long? = null,
             /** Max wait for initial speech before failing with `ERROR_SPEECH_TIMEOUT`. */
             val noSpeechTimeoutMs: Long,
             /** Minimum recording length before silence endpointing may end the session. */
@@ -204,6 +211,7 @@ class RecognitionSession(
             val maxRecordingMs: Long,
         ) {
             fun normalized(): EndpointingConfig = copy(
+                possiblyCompleteSilenceMs = possiblyCompleteSilenceMs?.coerceAtMost(endSilenceMs),
                 minimumLengthMs = minimumLengthMs.coerceAtMost(maxRecordingMs),
             )
 
@@ -216,6 +224,7 @@ class RecognitionSession(
                     }
                     return EndpointingConfig(
                         endSilenceMs = endSilence,
+                        possiblyCompleteSilenceMs = null,
                         noSpeechTimeoutMs = NO_SPEECH_TIMEOUT_MS,
                         minimumLengthMs = 0L,
                         maxRecordingMs = MAX_RECORDING_MS,

@@ -106,16 +106,16 @@ class DictateRecognitionService : RecognitionService() {
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
                 defaults.endSilenceMs,
             ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
-            val possibleSilenceMs = intent.getLongExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                completeSilenceMs,
-            ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
-            val endSilenceMs = when {
-                intent.hasExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS) ->
-                    completeSilenceMs
-                intent.hasExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS) ->
-                    possibleSilenceMs
-                else -> defaults.endSilenceMs
+            val possibleSilenceMs = if (intent.hasExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                )
+            ) {
+                intent.getLongExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                    completeSilenceMs,
+                ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
+            } else {
+                null
             }
             val minimumLengthHintMs = if (intent.hasExtra(
                     RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
@@ -141,7 +141,8 @@ class DictateRecognitionService : RecognitionService() {
                 maxRecordingMs,
             )
             return RecognitionSession.EndpointingConfig(
-                endSilenceMs = endSilenceMs,
+                endSilenceMs = completeSilenceMs,
+                possiblyCompleteSilenceMs = possibleSilenceMs,
                 noSpeechTimeoutMs = noSpeechTimeoutMs,
                 minimumLengthMs = minimumLengthMs,
                 maxRecordingMs = maxRecordingMs,
