@@ -37,6 +37,7 @@ internal object SmartTurnModel {
     private const val MODEL_DEST = "smart-turn.onnx"
     private const val MODEL_BYTES = 8_840_701L
     private const val COMPLETE_THRESHOLD = 0.5f
+    private const val QNN_HEXAGON_BACKEND_PATH = "libQnnHtp.so"
 
     @Volatile private var holder: SessionHolder? = null
     // Set after a native session-creation failure so a broken runtime is not retried on every pause. The
@@ -117,7 +118,7 @@ internal object SmartTurnModel {
         var qnnEnabled = false
         if (isLikelySnapdragon()) {
             qnnEnabled = try {
-                addQnn(mapOf("backend_path" to "libQnnHtp.so"))
+                addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
                 true
             } catch (_: OrtException) {
                 false
