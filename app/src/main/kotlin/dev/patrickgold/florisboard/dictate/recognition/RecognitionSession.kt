@@ -191,8 +191,11 @@ class RecognitionSession(
         private const val ANDROID_15_END_SILENCE_MS = 2_000L
 
         data class EndpointingConfig(
+            /** Silence (after speech already started) that auto-submits the recording. */
             val endSilenceMs: Long,
+            /** Max wait for initial speech before failing with `ERROR_SPEECH_TIMEOUT`. */
             val noSpeechTimeoutMs: Long,
+            /** Absolute recording ceiling regardless of speech activity. */
             val maxRecordingMs: Long,
         ) {
             companion object {
