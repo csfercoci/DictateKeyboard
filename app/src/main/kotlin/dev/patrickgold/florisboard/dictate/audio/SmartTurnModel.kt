@@ -74,7 +74,7 @@ internal object SmartTurnModel {
                 setInterOpNumThreads(1)
                 setIntraOpNumThreads(1)
                 setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
-                configureLocalAcceleration()
+                configureLocalAcceleration(context)
             }
             try {
                 SessionHolder(environment, environment.createSession(model.absolutePath, options))
@@ -114,8 +114,8 @@ internal object SmartTurnModel {
      * Prefers Qualcomm's QNN Hexagon path when available and falls back to NNAPI, then CPU.
      * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
      */
-    private fun OrtSession.SessionOptions.configureLocalAcceleration() {
-        val qnnEnabled = if (isLikelyQualcommSoC()) {
+    private fun OrtSession.SessionOptions.configureLocalAcceleration(context: Context) {
+        val qnnEnabled = if (isLikelyQualcommSoC() && hasQnnBackendLibrary(context)) {
             try {
                 addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
                 true
@@ -135,6 +135,11 @@ internal object SmartTurnModel {
             } catch (_: UnsatisfiedLinkError) {
                 // Best effort only; CPU remains available.
             }
+        }
+
+        private fun hasQnnBackendLibrary(context: Context): Boolean {
+            val nativeDir = context.applicationInfo.nativeLibraryDir ?: return false
+            return File(nativeDir, QNN_HEXAGON_BACKEND_PATH).isFile
         }
     }
 

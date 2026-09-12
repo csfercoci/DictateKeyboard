@@ -95,10 +95,6 @@ class DictateRecognitionService : RecognitionService() {
         private const val MAX_MINIMUM_LENGTH_MS = 10 * 60 * 1_000L
         private const val MIN_MAX_RECORDING_MS = 5_000L
         private const val MAX_MAX_RECORDING_MS = 10 * 60 * 1_000L
-        private const val EXTRA_DICTATE_NO_SPEECH_TIMEOUT_MS =
-            "net.devemperor.dictate.extra.NO_SPEECH_TIMEOUT_MS"
-        private const val EXTRA_DICTATE_MAX_RECORDING_MS =
-            "net.devemperor.dictate.extra.MAX_RECORDING_MS"
 
         private fun endpointingFor(intent: Intent): RecognitionSession.EndpointingConfig {
             val defaults = RecognitionSession.EndpointingConfig.defaultForDevice()
@@ -128,14 +124,12 @@ class DictateRecognitionService : RecognitionService() {
             } else {
                 null
             }
-            val noSpeechTimeoutMs = intent.getLongExtra(
-                EXTRA_DICTATE_NO_SPEECH_TIMEOUT_MS,
-                defaults.noSpeechTimeoutMs,
-            ).coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
-            val maxRecordingMs = intent.getLongExtra(
-                EXTRA_DICTATE_MAX_RECORDING_MS,
-                defaults.maxRecordingMs,
-            ).coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS)
+            val noSpeechTimeoutMs = defaults.noSpeechTimeoutMs
+                .coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
+            val maxRecordingMs = defaults.maxRecordingMs.coerceIn(
+                MIN_MAX_RECORDING_MS,
+                MAX_MAX_RECORDING_MS,
+            )
             val minimumLengthMs = minOf(
                 minimumLengthHintMs ?: defaults.minimumLengthMs,
                 maxRecordingMs,
