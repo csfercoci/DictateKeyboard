@@ -95,6 +95,9 @@ class DictateRecognitionService : RecognitionService() {
         private const val MAX_MINIMUM_LENGTH_MS = 10 * 60 * 1_000L
         private const val MIN_MAX_RECORDING_MS = 5_000L
         private const val MAX_MAX_RECORDING_MS = 10 * 60 * 1_000L
+        // Non-standard extra some recognizer clients use to request initial-silence timeout tuning.
+        private const val EXTRA_SPEECH_INPUT_NO_SPEECH_TIMEOUT_MS =
+            "android.speech.extra.SPEECH_INPUT_NO_SPEECH_TIMEOUT_MILLIS"
 
         private fun endpointingFor(intent: Intent): RecognitionSession.EndpointingConfig {
             val defaults = RecognitionSession.EndpointingConfig.defaultForDevice()
@@ -124,8 +127,10 @@ class DictateRecognitionService : RecognitionService() {
             } else {
                 null
             }
-            val noSpeechTimeoutMs = defaults.noSpeechTimeoutMs
-                .coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
+            val noSpeechTimeoutMs = intent.getLongExtra(
+                EXTRA_SPEECH_INPUT_NO_SPEECH_TIMEOUT_MS,
+                defaults.noSpeechTimeoutMs,
+            ).coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
             val maxRecordingMs = defaults.maxRecordingMs.coerceIn(
                 MIN_MAX_RECORDING_MS,
                 MAX_MAX_RECORDING_MS,
