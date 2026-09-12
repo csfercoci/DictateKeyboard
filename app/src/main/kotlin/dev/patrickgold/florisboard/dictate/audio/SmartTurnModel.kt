@@ -115,12 +115,16 @@ internal object SmartTurnModel {
      * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
      */
     private fun OrtSession.SessionOptions.configureLocalAcceleration() {
-        val qnnEnabled = try {
-            addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
-            true
-        } catch (_: OrtException) {
-            false
-        } catch (_: UnsatisfiedLinkError) {
+        val qnnEnabled = if (isLikelyQualcommSoC()) {
+            try {
+                addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
+                true
+            } catch (_: OrtException) {
+                false
+            } catch (_: UnsatisfiedLinkError) {
+                false
+            }
+        } else {
             false
         }
         if (!qnnEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -131,6 +135,22 @@ internal object SmartTurnModel {
             } catch (_: UnsatisfiedLinkError) {
                 // Best effort only; CPU remains available.
             }
+        }
+    }
+
+    private fun isLikelyQualcommSoC(): Boolean {
+        val probes = buildList {
+            add(Build.HARDWARE.orEmpty())
+            add(Build.BOARD.orEmpty())
+            add(Build.PRODUCT.orEmpty())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Build.SOC_MANUFACTURER.orEmpty())
+                add(Build.SOC_MODEL.orEmpty())
+            }
+        }
+        return probes.any { raw ->
+            val value = raw.lowercase()
+            value.contains("qualcomm") || value.contains("qcom") || value.contains("snapdragon")
         }
     }
 }
