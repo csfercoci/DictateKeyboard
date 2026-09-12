@@ -113,12 +113,13 @@ internal object SmartTurnModel {
      * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
      */
     private fun OrtSession.SessionOptions.configureLocalAcceleration() {
+        var qnnEnabled = false
         if (isLikelySnapdragon()) {
-            runCatching {
+            qnnEnabled = runCatching {
                 addQnn(mapOf("backend_path" to "libQnnHtp.so"))
-            }
+            }.isSuccess
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        if (!qnnEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             runCatching { addNnapi() }
         }
     }
