@@ -26,9 +26,10 @@ import kotlin.coroutines.coroutineContext
  * [LocalTranscriptionProvider] (issue #104). A model is a small set of files ([LocalModelSpec]) fetched
  * over HTTPS into the app's private storage; no audio or telemetry is ever sent.
  *
- * Installs are atomic: files download into a `.tmp-<id>` staging dir, are size/checksum-verified, and
- * only then replace the real model dir. A failed or cancelled download leaves any previously installed
- * model untouched. All work runs on [Dispatchers.IO] and honours coroutine cancellation.
+ * Installs are atomic: files download into a `.tmp-<id>` staging dir, are verified (checksum always when
+ * provided, exact size when known), and only then replace the real model dir. A failed or cancelled
+ * download leaves any previously installed model untouched. All work runs on [Dispatchers.IO] and honours
+ * coroutine cancellation.
  */
 object LocalModelManager {
 
@@ -65,7 +66,8 @@ object LocalModelManager {
     /**
      * Downloads and installs [spec]. [onProgress] is invoked with `(downloadedBytes, totalBytes)` as the
      * download proceeds (frequently — throttle on the UI side). Suspends until done; throws on any
-     * failure (network, HTTP, size/checksum mismatch) after cleaning up the staging dir.
+     * failure (network, HTTP, checksum mismatch, or size mismatch when size is known) after cleaning up
+     * the staging dir.
      */
     suspend fun download(
         context: Context,
@@ -82,7 +84,7 @@ object LocalModelManager {
             var completed = 0L
             for (f in spec.files) {
                 downloadFile(f, File(tmpDir, f.destName), completed, total, onProgress)
-                completed += f.sizeBytes
+                completed += f.sizeBytes.coerceAtLeast(0L)
                 onProgress(completed, total)
             }
             // Swap staging dir into place atomically (same filesystem); copy-fallback if rename fails.
@@ -125,8 +127,10 @@ object LocalModelManager {
                     }
                 }
             }
-            check(dest.length() == file.sizeBytes) {
-                "size mismatch for ${file.destName}: expected ${file.sizeBytes}, got ${dest.length()}"
+            if (file.sizeBytes > 0L) {
+                check(dest.length() == file.sizeBytes) {
+                    "size mismatch for ${file.destName}: expected ${file.sizeBytes}, got ${dest.length()}"
+                }
             }
             if (digest != null) {
                 val actual = digest.digest().joinToString("") { "%02x".format(it) }

@@ -14,6 +14,7 @@ import android.content.Context
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.OfflineCanaryModelConfig
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineNemoEncDecCtcModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
@@ -409,10 +410,10 @@ private object RecognizerCache {
         val kind = LocalModelCatalog.kindOf(modelDir.name)
 
         // Language is baked into the Whisper and Canary configs at build time, so it is part of the cache
-        // key (switching the input language rebuilds the recognizer; ~1s). A transducer decodes the audio
-        // as-is and ignores the language, so it stays out of the key for those.
+        // key (switching the input language rebuilds the recognizer; ~1s). Transducers and NeMo CTC decode
+        // the audio as-is and ignore the language, so it stays out of the key for those.
         val cacheKey = modelDir.absolutePath + "|" +
-            (if (kind == LocalModelKind.NEMO_TRANSDUCER) "" else language)
+            (if (kind == LocalModelKind.NEMO_TRANSDUCER || kind == LocalModelKind.NEMO_CTC) "" else language)
         val existing = recognizer
         val rec = if (existing != null && cacheKey == key) {
             existing
@@ -490,6 +491,15 @@ private object RecognizerCache {
                 tokens = tokens.absolutePath,
                 numThreads = numThreads,
                 modelType = "nemo_transducer",
+            )
+            // NeMo CTC model (single ONNX graph + tokens), e.g. SpeD ParakeetRo 110M.
+            LocalModelKind.NEMO_CTC -> OfflineModelConfig(
+                nemo = OfflineNemoEncDecCtcModelConfig(
+                    model = model.absolutePath,
+                ),
+                tokens = tokens.absolutePath,
+                numThreads = numThreads,
+                modelType = "nemo_ctc",
             )
             // Canary (issue #255) is an attention encoder/decoder: it does not sniff the language, it is
             // handed one, and it will happily transcribe French as though it were the language it was

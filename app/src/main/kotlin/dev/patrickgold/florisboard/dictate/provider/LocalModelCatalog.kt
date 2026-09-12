@@ -12,8 +12,9 @@ package dev.patrickgold.florisboard.dictate.provider
 
 /**
  * One downloadable file of an on-device model. [destName] is the fixed name it is stored under (so the
- * runtime stays variant-agnostic — see [LocalTranscriptionProvider]); [sizeBytes] and [sha256] are
- * verified after download to guarantee integrity.
+ * runtime stays variant-agnostic — see [LocalTranscriptionProvider]). [sizeBytes] > 0 means exact-size
+ * verification is enforced after download; 0 means "unknown size" (integrity then depends on [sha256]
+ * when provided).
  */
 data class LocalModelFile(
     val url: String,
@@ -33,6 +34,9 @@ enum class LocalModelKind {
 
     /** NeMo transducer (encoder/decoder/joiner) — Parakeet, GigaAM. Language-agnostic at decode time. */
     NEMO_TRANSDUCER,
+
+    /** NeMo encoder/decoder CTC model (single `model.onnx` + `tokens.txt`). */
+    NEMO_CTC,
 
     /** NVIDIA Canary: an attention encoder/decoder that is *told* its language rather than detecting it. */
     CANARY,
@@ -66,7 +70,7 @@ data class LocalModelSpec(
      */
     val isStreaming: Boolean = false,
 ) {
-    val totalBytes: Long get() = files.sumOf { it.sizeBytes }
+    val totalBytes: Long get() = files.sumOf { it.sizeBytes.coerceAtLeast(0L) }
 }
 
 /**
@@ -257,6 +261,31 @@ object LocalModelCatalog {
             LocalModelFile("$REL/gigaam-v2-ru-decoder.onnx", LocalTranscriptionProvider.DECODER, 3_331_651, "208e24cc150fb0ebca3fab169502796daa12e0255dcf7b4acf65015c436e9f76"),
             LocalModelFile("$REL/gigaam-v2-ru-joiner.onnx", LocalTranscriptionProvider.JOINER, 1_440_448, "4b02eced18e033fc5173e6c47b6ab166b5efea8d35c3f33a6755ff0d622fb5b0"),
             LocalModelFile("$REL/gigaam-v2-ru-tokens.txt", LocalTranscriptionProvider.TOKENS, 196, "17cc514451bcceac9c280068c71502f8448f99e9fb1456b8d0761651fd0392f2"),
+            VAD_FILE,
+        ),
+    )
+
+    /**
+     * SpeD ParakeetRo 110M ONNX (community Romanian-specialized NeMo CTC model). Downloaded directly from
+     * the upstream Hugging Face repository by request; file sizes/checksums are intentionally left
+     * unspecified here until the upstream mirror pins them for reproducible verification.
+     */
+    val SPED_PARAKEET_RO_110M = LocalModelSpec(
+        id = "sped-parakeetro-110m",
+        displayName = "SpeD ParakeetRo 110M",
+        description = "Romanian · 110M params",
+        kind = LocalModelKind.NEMO_CTC,
+        files = listOf(
+            LocalModelFile(
+                "https://huggingface.co/AlinClaudiu/SpeD-ParakeetRo-110M-onnx/resolve/main/model.onnx",
+                LocalTranscriptionProvider.MODEL,
+                0L,
+            ),
+            LocalModelFile(
+                "https://huggingface.co/AlinClaudiu/SpeD-ParakeetRo-110M-onnx/resolve/main/tokens.txt",
+                LocalTranscriptionProvider.TOKENS,
+                0L,
+            ),
             VAD_FILE,
         ),
     )
@@ -466,6 +495,7 @@ object LocalModelCatalog {
         CANARY_180M_FLASH,
         PARAKEET_PRIMELINE_DE,
         GIGAAM_V2_RU,
+        SPED_PARAKEET_RO_110M,
         SENSE_VOICE_SMALL,
         WHISPER_TINY, WHISPER_BASE, WHISPER_SMALL,
         WHISPER_TINY_EN, WHISPER_BASE_EN, WHISPER_SMALL_EN,
@@ -494,6 +524,7 @@ object LocalModelCatalog {
             // seventy-something. Its fallback is the multilingual Whisper, not the English one.
             "zh", "yue", "ja", "ko" -> listOf(SENSE_VOICE_SMALL, WHISPER_SMALL)
             "ru" -> listOf(GIGAAM_V2_RU, WHISPER_SMALL)
+            "ro" -> listOf(SPED_PARAKEET_RO_110M, WHISPER_SMALL)
             // German is the one language with a specialized model that is also cheap to recommend
             // against: same architecture, far better German, but 670 MB — an offer, not a default.
             "de" -> listOf(WHISPER_BASE, PARAKEET_PRIMELINE_DE)

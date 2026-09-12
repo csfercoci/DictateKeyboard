@@ -43,6 +43,10 @@ distribution. They are mirrored unmodified on the project's GitHub releases.
     NVIDIA Canary 180M Flash — https://huggingface.co/nvidia/canary-180m-flash
     (CC-BY-4.0)
     GigaAM v2 Russian — https://github.com/salute-developers/GigaAM (MIT)
+    SpeD ParakeetRo 110M (Romanian) —
+    https://huggingface.co/gabrielpirlo/SpeD_ParakeetRo_110M_TDT-CTC
+    and ONNX export https://huggingface.co/AlinClaudiu/SpeD-ParakeetRo-110M-onnx
+    (Apache-2.0)
 
     SenseVoice Small (Chinese, Cantonese, English, Japanese, Korean)
     Copyright Alibaba Group — https://github.com/FunAudioLLM/SenseVoice
