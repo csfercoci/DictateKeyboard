@@ -16,7 +16,6 @@ import android.speech.RecognizerIntent
 import android.speech.RecognitionService
 import android.speech.SpeechRecognizer
 import kotlin.math.max
-import kotlin.math.min
 
 /**
  * Makes Dictate a system-wide speech recognizer via the standard Android [RecognitionService] API
@@ -102,16 +101,12 @@ class DictateRecognitionService : RecognitionService() {
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
                 defaults.endSilenceMs,
             ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
-            val possibleSilenceMs = intent.getLongExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                completeSilenceMs,
-            ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
             val minimumLengthHintMs = intent.getLongExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
                 defaults.maxRecordingMs,
             ).coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS)
             return RecognitionSession.EndpointingConfig(
-                endSilenceMs = min(completeSilenceMs, possibleSilenceMs),
+                endSilenceMs = completeSilenceMs,
                 noSpeechTimeoutMs = defaults.noSpeechTimeoutMs.coerceIn(
                     MIN_NO_SPEECH_TIMEOUT_MS,
                     MAX_NO_SPEECH_TIMEOUT_MS,
