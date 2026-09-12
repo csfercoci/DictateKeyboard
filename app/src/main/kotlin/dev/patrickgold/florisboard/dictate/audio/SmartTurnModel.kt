@@ -136,11 +136,11 @@ internal object SmartTurnModel {
                 // Best effort only; CPU remains available.
             }
         }
+    }
 
-        private fun hasQnnBackendLibrary(context: Context): Boolean {
-            val nativeDir = context.applicationInfo.nativeLibraryDir ?: return false
-            return File(nativeDir, QNN_HEXAGON_BACKEND_PATH).isFile
-        }
+    private fun hasQnnBackendLibrary(context: Context): Boolean {
+        val nativeDir = context.applicationInfo.nativeLibraryDir ?: return false
+        return File(nativeDir, QNN_HEXAGON_BACKEND_PATH).isFile
     }
 
     private fun isLikelyQualcommSoC(): Boolean {

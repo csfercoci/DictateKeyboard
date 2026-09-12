@@ -99,8 +99,8 @@ class DictateRecognitionService : RecognitionService() {
         private const val EXTRA_SPEECH_INPUT_NO_SPEECH_TIMEOUT_MS =
             "android.speech.extra.SPEECH_INPUT_NO_SPEECH_TIMEOUT_MILLIS"
 
-        private fun endpointingFor(intent: Intent): RecognitionSession.EndpointingConfig {
-            val defaults = RecognitionSession.EndpointingConfig.defaultForDevice()
+        private fun endpointingFor(intent: Intent): RecognitionSession.Companion.EndpointingConfig {
+            val defaults = RecognitionSession.Companion.EndpointingConfig.defaultForDevice()
             val completeSilenceMs = intent.getLongExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
                 defaults.endSilenceMs,
@@ -139,7 +139,7 @@ class DictateRecognitionService : RecognitionService() {
                 minimumLengthHintMs ?: defaults.minimumLengthMs,
                 maxRecordingMs,
             )
-            return RecognitionSession.EndpointingConfig(
+            return RecognitionSession.Companion.EndpointingConfig(
                 endSilenceMs = completeSilenceMs,
                 possiblyCompleteSilenceMs = possibleSilenceMs,
                 noSpeechTimeoutMs = noSpeechTimeoutMs,
