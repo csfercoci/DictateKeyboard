@@ -111,44 +111,26 @@ internal object SmartTurnModel {
     }
 
     /**
-     * Prefers Qualcomm's QNN Hexagon path on likely Snapdragon devices and falls back to NNAPI, then CPU.
+     * Prefers Qualcomm's QNN Hexagon path when available and falls back to NNAPI, then CPU.
      * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
      */
     private fun OrtSession.SessionOptions.configureLocalAcceleration() {
-        var qnnEnabled = false
-        if (isLikelySnapdragon()) {
-            qnnEnabled = try {
-                addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
-                true
-            } catch (_: OrtException) {
-                false
-            }
+        val qnnEnabled = try {
+            addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
+            true
+        } catch (_: OrtException) {
+            false
+        } catch (_: UnsatisfiedLinkError) {
+            false
         }
         if (!qnnEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 addNnapi()
             } catch (_: OrtException) {
                 // Best effort only; CPU remains available.
+            } catch (_: UnsatisfiedLinkError) {
+                // Best effort only; CPU remains available.
             }
-        }
-    }
-
-    private fun isLikelySnapdragon(): Boolean {
-        val probes = buildList {
-            add(Build.HARDWARE.orEmpty())
-            add(Build.BOARD.orEmpty())
-            add(Build.PRODUCT.orEmpty())
-            add(Build.BRAND.orEmpty())
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                add(Build.SOC_MANUFACTURER.orEmpty())
-                add(Build.SOC_MODEL.orEmpty())
-            }
-        }
-        return probes.any { value ->
-            val normalized = value.lowercase()
-            normalized.contains("qualcomm") ||
-                normalized.contains("snapdragon") ||
-                normalized.contains("qcom")
         }
     }
 }

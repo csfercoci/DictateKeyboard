@@ -136,10 +136,11 @@ class DictateRecognitionService : RecognitionService() {
                 EXTRA_DICTATE_MAX_RECORDING_MS,
                 defaults.maxRecordingMs,
             ).coerceIn(MIN_MAX_RECORDING_MS, MAX_MAX_RECORDING_MS)
+            val minimumLengthMs = (minimumLengthHintMs ?: defaults.minimumLengthMs).coerceAtMost(maxRecordingMs)
             return RecognitionSession.EndpointingConfig(
                 endSilenceMs = endSilenceMs,
                 noSpeechTimeoutMs = noSpeechTimeoutMs,
-                minimumLengthMs = minimumLengthHintMs ?: defaults.minimumLengthMs,
+                minimumLengthMs = minimumLengthMs,
                 maxRecordingMs = maxRecordingMs,
             )
         }

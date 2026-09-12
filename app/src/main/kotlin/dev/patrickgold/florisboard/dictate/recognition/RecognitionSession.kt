@@ -41,8 +41,9 @@ import kotlinx.coroutines.launch
 class RecognitionSession(
     private val appContext: Context,
     private val host: Host,
-    private val endpointing: EndpointingConfig = EndpointingConfig.defaultForDevice(),
+    endpointing: EndpointingConfig = EndpointingConfig.defaultForDevice(),
 ) {
+    private val endpointing = endpointing.normalized()
     /** Receives lifecycle + result callbacks; the service maps these to its `RecognitionService.Callback`,
      *  the activity updates its UI and returns an activity result. Only [onResults]/[onError] are required. */
     interface Host {
@@ -202,6 +203,10 @@ class RecognitionSession(
             /** Absolute recording ceiling regardless of speech activity. */
             val maxRecordingMs: Long,
         ) {
+            fun normalized(): EndpointingConfig = copy(
+                minimumLengthMs = minimumLengthMs.coerceAtMost(maxRecordingMs),
+            )
+
             companion object {
                 fun defaultForDevice(): EndpointingConfig {
                     val endSilence = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
