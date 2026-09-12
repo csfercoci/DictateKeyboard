@@ -12,6 +12,7 @@ package dev.patrickgold.florisboard.dictate.recognition
 
 import android.content.Intent
 import android.os.Bundle
+import android.speech.RecognizerIntent
 import android.speech.RecognitionService
 import android.speech.SpeechRecognizer
 
@@ -35,7 +36,11 @@ class DictateRecognitionService : RecognitionService() {
     override fun onStartListening(recognizerIntent: Intent, listener: Callback) {
         session?.cancel()
         runCatching { listener.readyForSpeech(Bundle()) }
-        session = RecognitionSession(applicationContext, hostFor(listener)).also { it.start() }
+        session = RecognitionSession(
+            appContext = applicationContext,
+            host = hostFor(listener),
+            endpointing = endpointingFor(recognizerIntent),
+        ).also { it.start() }
     }
 
     override fun onStopListening(listener: Callback) {
@@ -82,6 +87,67 @@ class DictateRecognitionService : RecognitionService() {
     }
 
     private companion object {
+        private const val MIN_END_SILENCE_MS = 500L
+        private const val MAX_END_SILENCE_MS = 10_000L
+        private const val MIN_NO_SPEECH_TIMEOUT_MS = 1_000L
+        private const val MAX_NO_SPEECH_TIMEOUT_MS = 30_000L
+        private const val MIN_MINIMUM_LENGTH_MS = 0L
+        private const val MAX_MINIMUM_LENGTH_MS = 10 * 60 * 1_000L
+        private const val MIN_MAX_RECORDING_MS = 5_000L
+        private const val MAX_MAX_RECORDING_MS = 10 * 60 * 1_000L
+        // Non-standard extra some recognizer clients use to request initial-silence timeout tuning.
+        private const val EXTRA_SPEECH_INPUT_NO_SPEECH_TIMEOUT_MS =
+            "android.speech.extra.SPEECH_INPUT_NO_SPEECH_TIMEOUT_MILLIS"
+
+        private fun endpointingFor(intent: Intent): RecognitionSession.EndpointingConfig {
+            val defaults = RecognitionSession.EndpointingConfig.defaultForDevice()
+            val completeSilenceMs = intent.getLongExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                defaults.endSilenceMs,
+            ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
+            val possibleSilenceMs = if (intent.hasExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                )
+            ) {
+                intent.getLongExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                    completeSilenceMs,
+                ).coerceIn(MIN_END_SILENCE_MS, MAX_END_SILENCE_MS)
+            } else {
+                null
+            }
+            val minimumLengthHintMs = if (intent.hasExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
+                )
+            ) {
+                intent.getLongExtra(
+                    RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
+                    0L,
+                ).coerceIn(MIN_MINIMUM_LENGTH_MS, MAX_MINIMUM_LENGTH_MS)
+            } else {
+                null
+            }
+            val noSpeechTimeoutMs = intent.getLongExtra(
+                EXTRA_SPEECH_INPUT_NO_SPEECH_TIMEOUT_MS,
+                defaults.noSpeechTimeoutMs,
+            ).coerceIn(MIN_NO_SPEECH_TIMEOUT_MS, MAX_NO_SPEECH_TIMEOUT_MS)
+            val maxRecordingMs = defaults.maxRecordingMs.coerceIn(
+                MIN_MAX_RECORDING_MS,
+                MAX_MAX_RECORDING_MS,
+            )
+            val minimumLengthMs = minOf(
+                minimumLengthHintMs ?: defaults.minimumLengthMs,
+                maxRecordingMs,
+            )
+            return RecognitionSession.EndpointingConfig(
+                endSilenceMs = completeSilenceMs,
+                possiblyCompleteSilenceMs = possibleSilenceMs,
+                noSpeechTimeoutMs = noSpeechTimeoutMs,
+                minimumLengthMs = minimumLengthMs,
+                maxRecordingMs = maxRecordingMs,
+            )
+        }
+
         private fun resultsBundle(text: String): Bundle = Bundle().apply {
             putStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION, arrayListOf(text))
         }

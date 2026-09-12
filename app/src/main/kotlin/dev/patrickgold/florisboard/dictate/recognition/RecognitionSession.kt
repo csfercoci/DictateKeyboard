@@ -11,6 +11,7 @@
 package dev.patrickgold.florisboard.dictate.recognition
 
 import android.content.Context
+import android.os.Build
 import android.speech.SpeechRecognizer
 import dev.patrickgold.florisboard.dictate.DictateController
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +41,9 @@ import kotlinx.coroutines.launch
 class RecognitionSession(
     private val appContext: Context,
     private val host: Host,
+    endpointing: EndpointingConfig = EndpointingConfig.defaultForDevice(),
 ) {
+    private val endpointing = endpointing.normalized()
     /** Receives lifecycle + result callbacks; the service maps these to its `RecognitionService.Callback`,
      *  the activity updates its UI and returns an activity result. Only [onResults]/[onError] are required. */
     interface Host {
@@ -82,12 +85,22 @@ class RecognitionSession(
                 }
                 val elapsed = now - startedMs
                 when {
-                    speechStarted && now - lastLoudMs >= END_SILENCE_MS -> { stop(); return@launch }
-                    !speechStarted && elapsed >= NO_SPEECH_TIMEOUT_MS -> {
+                    speechStarted && elapsed >= endpointing.minimumLengthMs && run {
+                        val silenceMs = now - lastLoudMs
+                        val possible = endpointing.possiblyCompleteSilenceMs
+                        (possible != null && silenceMs >= possible) || silenceMs >= endpointing.endSilenceMs
+                    } -> {
+                        stop()
+                        return@launch
+                    }
+                    !speechStarted && elapsed >= endpointing.noSpeechTimeoutMs -> {
                         failAndCancel(SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
                         return@launch
                     }
-                    elapsed >= MAX_RECORDING_MS -> { stop(); return@launch }
+                    elapsed >= endpointing.maxRecordingMs -> {
+                        stop()
+                        return@launch
+                    }
                 }
                 delay(POLL_INTERVAL_MS)
             }
@@ -175,5 +188,49 @@ class RecognitionSession(
 
         /** Hard cap on a single recognition recording (3 minutes). */
         private const val MAX_RECORDING_MS = 180_000L
+
+        /**
+         * Android 15 tightened voice-input UX expectations (faster auto-submit from system surfaces), so
+         * recognition sessions default to a shorter end-of-speech tail there.
+         */
+        private const val ANDROID_15_END_SILENCE_MS = 2_000L
+
+        data class EndpointingConfig(
+            /** Silence (after speech already started) that auto-submits the recording. */
+            val endSilenceMs: Long,
+            /**
+             * Earlier "possibly complete" silence hint from the recognizer contract. When present, this
+             * allows a faster auto-stop than [endSilenceMs].
+             */
+            val possiblyCompleteSilenceMs: Long? = null,
+            /** Max wait for initial speech before failing with `ERROR_SPEECH_TIMEOUT`. */
+            val noSpeechTimeoutMs: Long,
+            /** Minimum recording length before silence endpointing may end the session. */
+            val minimumLengthMs: Long,
+            /** Absolute recording ceiling regardless of speech activity. */
+            val maxRecordingMs: Long,
+        ) {
+            fun normalized(): EndpointingConfig = copy(
+                possiblyCompleteSilenceMs = possiblyCompleteSilenceMs?.coerceAtMost(endSilenceMs),
+                minimumLengthMs = minimumLengthMs.coerceAtMost(maxRecordingMs),
+            )
+
+            companion object {
+                fun defaultForDevice(): EndpointingConfig {
+                    val endSilence = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                        ANDROID_15_END_SILENCE_MS
+                    } else {
+                        END_SILENCE_MS
+                    }
+                    return EndpointingConfig(
+                        endSilenceMs = endSilence,
+                        possiblyCompleteSilenceMs = null,
+                        noSpeechTimeoutMs = NO_SPEECH_TIMEOUT_MS,
+                        minimumLengthMs = 0L,
+                        maxRecordingMs = MAX_RECORDING_MS,
+                    )
+                }
+            }
+        }
     }
 }

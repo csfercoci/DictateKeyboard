@@ -1,0 +1,49 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+      - copilot/implementare-android-15-voice-optimization
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew ./tools/fetch-sherpa-onnx.sh
+
+      - name: Fetch sherpa-onnx + ORT runtime artifacts
+        run: ./tools/fetch-sherpa-onnx.sh
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run debug unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace

@@ -12,8 +12,10 @@ package dev.patrickgold.florisboard.dictate.audio
 
 import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtException
 import ai.onnxruntime.OrtSession
 import android.content.Context
+import android.os.Build
 import dev.patrickgold.florisboard.dictate.provider.LocalModelCatalog
 import dev.patrickgold.florisboard.dictate.provider.LocalTranscriptionProvider
 import java.io.File
@@ -35,6 +37,7 @@ internal object SmartTurnModel {
     private const val MODEL_DEST = "smart-turn.onnx"
     private const val MODEL_BYTES = 8_840_701L
     private const val COMPLETE_THRESHOLD = 0.5f
+    private const val QNN_HEXAGON_BACKEND_PATH = "libQnnHtp.so"
 
     @Volatile private var holder: SessionHolder? = null
     // Set after a native session-creation failure so a broken runtime is not retried on every pause. The
@@ -71,6 +74,7 @@ internal object SmartTurnModel {
                 setInterOpNumThreads(1)
                 setIntraOpNumThreads(1)
                 setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+                configureLocalAcceleration(context)
             }
             try {
                 SessionHolder(environment, environment.createSession(model.absolutePath, options))
@@ -104,6 +108,55 @@ internal object SmartTurnModel {
                 }
             }
         }.getOrNull()
+    }
+
+    /**
+     * Prefers Qualcomm's QNN Hexagon path when available and falls back to NNAPI, then CPU.
+     * All provider enablement is best-effort: unsupported execution providers simply keep the CPU path.
+     */
+    private fun OrtSession.SessionOptions.configureLocalAcceleration(context: Context) {
+        val qnnEnabled = if (isLikelyQualcommSoC() && hasQnnBackendLibrary(context)) {
+            try {
+                addQnn(mapOf("backend_path" to QNN_HEXAGON_BACKEND_PATH))
+                true
+            } catch (_: OrtException) {
+                false
+            } catch (_: UnsatisfiedLinkError) {
+                false
+            }
+        } else {
+            false
+        }
+        if (!qnnEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                addNnapi()
+            } catch (_: OrtException) {
+                // Best effort only; CPU remains available.
+            } catch (_: UnsatisfiedLinkError) {
+                // Best effort only; CPU remains available.
+            }
+        }
+
+        private fun hasQnnBackendLibrary(context: Context): Boolean {
+            val nativeDir = context.applicationInfo.nativeLibraryDir ?: return false
+            return File(nativeDir, QNN_HEXAGON_BACKEND_PATH).isFile
+        }
+    }
+
+    private fun isLikelyQualcommSoC(): Boolean {
+        val probes = buildList {
+            add(Build.HARDWARE.orEmpty())
+            add(Build.BOARD.orEmpty())
+            add(Build.PRODUCT.orEmpty())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Build.SOC_MANUFACTURER.orEmpty())
+                add(Build.SOC_MODEL.orEmpty())
+            }
+        }
+        return probes.any { raw ->
+            val value = raw.lowercase()
+            value.contains("qualcomm") || value.contains("qcom") || value.contains("snapdragon")
+        }
     }
 }
 
